@@ -1,0 +1,33 @@
+.update-notice {
+  position: fixed;
+  z-index: 50;
+  top: calc(env(safe-area-inset-top, 0px) + 68px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.update-notice button {
+  min-height: var(--hit);
+  min-width: var(--hit);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.update-notice button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}

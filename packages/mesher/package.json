@@ -1,0 +1,19 @@
+{
+  "name": "@voxeltoy/mesher",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./build/release.js",
+      "types": "./build/release.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "asc src/assembly/index.ts --target release",
+    "test": "asc src/assembly/index.ts --target debug && node tests"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.28.9"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "voxeltoy-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "scripts": {
+    "build:wasm": "pnpm --filter @voxeltoy/mesher build",
+    "dev": "pnpm build:wasm && pnpm --filter @voxeltoy/web dev",
+    "dev:app": "pnpm build:wasm && pnpm --filter @voxeltoy/web dev:app",
+    "build": "pnpm build:wasm && pnpm typecheck && pnpm --filter @voxeltoy/web build",
+    "voxeltoy": "bun packages/cli/src/main.ts",
+    "moxel": "bun packages/cli/src/main.ts",
+    "preview": "pnpm --filter @voxeltoy/web preview",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "pnpm build:wasm && bun test && pnpm --filter @voxeltoy/mesher test",
+    "deploy": "pnpm build && pnpm --filter @voxeltoy/worker deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

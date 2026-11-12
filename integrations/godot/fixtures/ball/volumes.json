@@ -1,0 +1,201 @@
+{
+  "format": "moxel-volumes",
+  "version": 1,
+  "name": "Sample",
+  "fps": 12,
+  "durationMs": 750,
+  "size": [
+    32,
+    32,
+    32
+  ],
+  "palette": "palette.png",
+  "volumes": [
+    {
+      "file": "volume-01.png",
+      "size": [
+        22,
+        25,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-02.png",
+      "size": [
+        22,
+        27,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-03.png",
+      "size": [
+        22,
+        29,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-04.png",
+      "size": [
+        22,
+        30,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-05.png",
+      "size": [
+        22,
+        30,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-06.png",
+      "size": [
+        22,
+        30,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-07.png",
+      "size": [
+        22,
+        29,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    },
+    {
+      "file": "volume-08.png",
+      "size": [
+        22,
+        27,
+        20
+      ],
+      "offset": [
+        5,
+        0,
+        6
+      ],
+      "columns": 5,
+      "rows": 4
+    }
+  ],
+  "frames": [
+    {
+      "id": "frame:0",
+      "index": 0,
+      "duration": 2,
+      "startMs": 0,
+      "durationMs": 166.66666666666666,
+      "volume": 0
+    },
+    {
+      "id": "frame:1",
+      "index": 1,
+      "duration": 1,
+      "startMs": 166.66666666666666,
+      "durationMs": 83.33333333333333,
+      "volume": 1
+    },
+    {
+      "id": "frame:2",
+      "index": 2,
+      "duration": 1,
+      "startMs": 250,
+      "durationMs": 83.33333333333333,
+      "volume": 2
+    },
+    {
+      "id": "frame:3",
+      "index": 3,
+      "duration": 1,
+      "startMs": 333.3333333333333,
+      "durationMs": 83.33333333333333,
+      "volume": 3
+    },
+    {
+      "id": "frame:4",
+      "index": 4,
+      "duration": 1,
+      "startMs": 416.6666666666667,
+      "durationMs": 83.33333333333333,
+      "volume": 4
+    },
+    {
+      "id": "frame:5",
+      "index": 5,
+      "duration": 1,
+      "startMs": 500,
+      "durationMs": 83.33333333333333,
+      "volume": 5
+    },
+    {
+      "id": "frame:6",
+      "index": 6,
+      "duration": 1,
+      "startMs": 583.3333333333334,
+      "durationMs": 83.33333333333333,
+      "volume": 6
+    },
+    {
+      "id": "frame:7",
+      "index": 7,
+      "duration": 1,
+      "startMs": 666.6666666666666,
+      "durationMs": 83.33333333333333,
+      "volume": 7
+    }
+  ]
+}

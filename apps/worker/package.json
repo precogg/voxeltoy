@@ -1,0 +1,17 @@
+{
+  "name": "@voxeltoy/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "cf workers types --quiet && tsc -p .",
+    "deploy": "cf deploy"
+  },
+  "dependencies": {
+    "@voxeltoy/core": "workspace:*",
+    "@voxeltoy/sync": "workspace:*"
+  },
+  "devDependencies": {
+    "cf": "^1.0.0-beta.12",
+    "wrangler": "^4.147.0"
+  }
+}

@@ -1,0 +1,14 @@
+[remap]
+
+importer="moxel.volumes"
+type="Resource"
+uid="uid://maguc4gwg30w"
+path="res://.godot/imported/ball.moxelvol-64121a601fa21449e779287ed19ef555.res"
+
+[deps]
+
+source_file="res://demo/ball.moxelvol"
+dest_files=["res://.godot/imported/ball.moxelvol-64121a601fa21449e779287ed19ef555.res"]
+
+[params]
+

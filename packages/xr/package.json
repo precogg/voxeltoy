@@ -1,0 +1,21 @@
+{
+  "name": "@voxeltoy/xr",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@voxeltoy/core": "workspace:*",
+    "@voxeltoy/three": "workspace:*",
+    "solid-js": "^1.9.3",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.182.0"
+  }
+}

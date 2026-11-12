@@ -1,0 +1,94 @@
+{
+  "format": "moxel-volumes",
+  "version": 1,
+  "name": "Critter",
+  "fps": 8,
+  "durationMs": 500,
+  "size": [
+    20,
+    22,
+    16
+  ],
+  "palette": "palette.png",
+  "volumes": [
+    {
+      "file": "volume-01.png",
+      "size": [
+        18,
+        22,
+        15
+      ],
+      "offset": [
+        1,
+        0,
+        1
+      ],
+      "columns": 4,
+      "rows": 4
+    },
+    {
+      "file": "volume-02.png",
+      "size": [
+        18,
+        22,
+        15
+      ],
+      "offset": [
+        1,
+        0,
+        1
+      ],
+      "columns": 4,
+      "rows": 4
+    },
+    {
+      "file": "volume-03.png",
+      "size": [
+        18,
+        22,
+        15
+      ],
+      "offset": [
+        1,
+        0,
+        1
+      ],
+      "columns": 4,
+      "rows": 4
+    }
+  ],
+  "frames": [
+    {
+      "id": "walk:0",
+      "index": 0,
+      "duration": 1,
+      "startMs": 0,
+      "durationMs": 125,
+      "volume": 0
+    },
+    {
+      "id": "walk:1",
+      "index": 1,
+      "duration": 1,
+      "startMs": 125,
+      "durationMs": 125,
+      "volume": 1
+    },
+    {
+      "id": "walk:2",
+      "index": 2,
+      "duration": 1,
+      "startMs": 250,
+      "durationMs": 125,
+      "volume": 2
+    },
+    {
+      "id": "walk:3",
+      "index": 3,
+      "duration": 1,
+      "startMs": 375,
+      "durationMs": 125,
+      "volume": 1
+    }
+  ]
+}

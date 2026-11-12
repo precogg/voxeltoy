@@ -1,0 +1,17 @@
+; Voxeltoy's Godot integration: the addons/moxel voxel runtime, its demo, and the spike that checks it.
+; See docs/voxel-runtime.md in the repository root.
+config_version=5
+
+[application]
+
+config/name="Voxeltoy"
+run/main_scene="res://demo/shooting_gallery.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/moxel/plugin.cfg")

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>VoxelVolume: shooting gallery</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; font: 14px system-ui, sans-serif; background: #b9d3e8; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; padding: 10px 14px; border-radius: 12px; background: #fffd;
+        box-shadow: 0 2px 12px #0002; font-variant-numeric: tabular-nums; white-space: pre-line; pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud"></div>
+    <script type="module" src="./voxel-game.ts"></script>
+  </body>
+</html>

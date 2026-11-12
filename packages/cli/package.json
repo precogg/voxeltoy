@@ -1,0 +1,21 @@
+{
+  "name": "@voxeltoy/cli",
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "voxeltoy": "./src/main.ts",
+    "moxel": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "compile": "bun build ./src/main.ts --compile --outfile dist/voxeltoy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@voxeltoy/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4"
+  }
+}

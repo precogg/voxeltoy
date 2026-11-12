@@ -1,0 +1,3343 @@
+/* Voxeltoy UI: floating, cloud-like panels over a full-bleed canvas. */
+
+:root {
+  --canvas: #f4f5f7;
+  --grid: #dcdee3;
+  --grid-strong: #c4c7ce;
+  --panel: #ffffff;
+  --text: #1d1d1f;
+  --muted: #8a8a92;
+  --hover: #f0f1f3;
+  --pressed: #e6e7ea;
+  --border: rgba(0, 0, 0, 0.06);
+  --accent: #3b82f6;
+  --accent-text: #ffffff;
+  --danger: #ef4444;
+  --onion-before: #f97316;
+  --onion-after: #22c55e;
+  --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.07);
+  --radius: 12px;
+  --radius-inner: 8px;
+  /* standalone buttons; list rows; buttons inside a row; a tree level; a row's tile */
+  --hit: 40px;
+  --row: 28px;
+  --hit-inline: 24px;
+  --indent: 14px;
+  --thumb: 20px;
+  --chev: 14px;
+  --gap: 8px;
+  --edge: 8px;
+
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #1c1c1f;
+  --grid: #2e2e33;
+  --grid-strong: #3d3d44;
+  --panel: #2a2a2e;
+  --text: #f2f2f3;
+  --muted: #8f8f98;
+  --hover: #35353a;
+  --pressed: #3f3f45;
+  --border: rgba(255, 255, 255, 0.07);
+  --accent: #4f8ff7;
+  --shadow: 0 0 0 1px var(--border), 0 4px 16px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+/* Fingers need bigger targets than cursors. */
+@media (pointer: coarse) {
+  :root {
+    --hit: 44px;
+    --row: 36px;
+    --hit-inline: 32px;
+    --indent: 16px;
+    --thumb: 24px;
+    --chev: 16px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--canvas);
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* #region Layout */
+
+.app {
+  position: fixed;
+  inset: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+
+.ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: max(var(--edge), env(safe-area-inset-top)) max(var(--edge), env(safe-area-inset-right))
+    max(var(--edge), env(safe-area-inset-bottom)) max(var(--edge), env(safe-area-inset-left));
+  display: grid;
+  /* the sides may shrink below what they hold: a host's wide main bar spills over its column
+     (the rows differ, so nothing meets it) rather than pushing the right-hand panels off screen */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "top-left . top-right"
+    ". . ."
+    "bottom-left bottom-center bottom-right";
+  gap: var(--gap);
+}
+
+.area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+.area > * {
+  pointer-events: auto;
+}
+
+.top-left {
+  grid-area: top-left;
+  align-items: flex-start;
+  /* panels may scroll, the canvas around them stays interactive */
+  max-height: 100%;
+}
+
+.top-right {
+  grid-area: top-right;
+  align-items: flex-end;
+  max-height: 100%;
+}
+
+.bottom-left {
+  grid-area: bottom-left;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.bottom-right {
+  grid-area: bottom-right;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.bottom-right:empty {
+  display: none;
+}
+
+/* Host content drawn over the canvas: it shows through, and input passes to the canvas. */
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bottom-center {
+  grid-area: bottom-center;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Phones: a full-width sheet under the top bar; toolbar spans the bottom with view controls above it. */
+.ui[data-compact] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, auto) 1fr auto auto;
+  grid-template-areas:
+    "top-left top-right"
+    "sheet sheet"
+    ". ."
+    "bottom-left bottom-left"
+    "bottom-center bottom-center";
+}
+
+.sheet {
+  grid-area: sheet;
+  max-height: 55vh;
+}
+
+.sheet:empty {
+  display: none;
+}
+
+.sheet > .panel {
+  width: 100%;
+  max-width: none;
+  max-height: 100%;
+}
+
+.sheet .palette {
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 6px;
+  max-height: 30vh;
+  padding-top: 10px;
+}
+
+.style-button {
+  display: grid;
+  place-items: center;
+  width: calc(var(--hit) + 8px);
+  height: calc(var(--hit) + 8px);
+  border: none;
+}
+
+.style-button .swatch.current {
+  width: 26px;
+  height: 26px;
+}
+
+.style-button[data-active] .swatch.current {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 4px var(--accent);
+}
+
+/* #endregion */
+
+/* #region Panels */
+
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  gap: 2px;
+}
+
+.bar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 2px;
+  background: var(--border);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--hit);
+  padding: 4px 4px 4px 12px;
+}
+
+.panel-title {
+  font-weight: 600;
+}
+
+/* #endregion */
+
+/* #region Buttons */
+
+.icon-button {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--text);
+  transition: background-color 80ms;
+}
+
+.icon-button.small {
+  width: calc(var(--hit) - 8px);
+  height: calc(var(--hit) - 8px);
+}
+
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .icon-button:not(:disabled):hover {
+    background: var(--hover);
+  }
+}
+
+.icon-button:not(:disabled):active {
+  background: var(--pressed);
+}
+
+.icon-button[data-active] {
+  background: var(--hover);
+}
+
+.icon-button.tool[data-active] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.icon-button:focus-visible,
+.segmented button:focus-visible,
+.chip:focus-visible,
+.menu-item:focus-visible,
+.swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--hit);
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  font-weight: 500;
+}
+
+.button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.button.danger {
+  color: var(--danger);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .button:not(:disabled):hover {
+    filter: brightness(0.97);
+  }
+}
+
+.button:not(:disabled):active {
+  filter: brightness(0.93);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button-row > .button {
+  flex: 1;
+}
+
+/* A quiet button that reads as a link. */
+.text-button {
+  align-self: flex-start;
+  min-height: var(--hit);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.text-input {
+  width: 100%;
+  min-width: 0;
+  height: var(--hit);
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  outline: none;
+  font-size: 16px; /* prevents iOS zoom on focus */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.text-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--hover);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip[data-active] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.segmented {
+  display: flex;
+  flex: 1;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+}
+
+.segmented button {
+  flex: 1;
+  min-width: 32px;
+  height: calc(var(--hit) - 12px);
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.segmented.dense button {
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 11.5px;
+}
+
+.segmented button[data-active] {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* #endregion */
+
+/* #region Menu */
+
+.menu-root {
+  position: relative;
+}
+
+.menu {
+  position: fixed;
+  z-index: 30;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--hit);
+  padding: 0 10px 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+@media (pointer: coarse) {
+  .menu-item {
+    min-height: 44px;
+  }
+}
+
+@media (hover: hover) {
+  .menu-item:not(:disabled):hover {
+    background: var(--hover);
+  }
+}
+
+.menu-item:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.menu-item[data-danger] {
+  color: var(--danger);
+}
+
+.menu-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  flex: none;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.menu-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.menu-detail {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.menu-heading {
+  padding: 8px 10px 4px 30px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* #endregion */
+
+/* #region Layers */
+
+.layers-panel {
+  width: 248px;
+  max-width: calc(100vw - 2 * var(--edge));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.layer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.layer-name-input {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-parent {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.layer-parent::before {
+  content: "↳ ";
+}
+
+/* The layers tree: flat rows, hierarchy from columns (indent, chevron gutter, tile), guide lines
+   under open rows, one selected row. See docs/shapes.md, Layers panel. */
+.tree-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--row);
+  padding-left: 4px;
+  border-radius: 6px;
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (hover: hover) {
+  .tree-row:not([data-selected]):hover {
+    background: var(--hover);
+  }
+}
+
+.tree-row[data-selected] {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.tree-row[data-holds] .tree-name {
+  font-weight: 600;
+}
+
+.tree-row[data-hidden] .tree-name {
+  color: var(--muted);
+}
+
+.tree-row[data-hidden] .tree-tile {
+  opacity: 0.45;
+}
+
+.tree-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(4px + var(--d) * var(--indent) + var(--chev) / 2);
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.tree-guide[data-lit] {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.tree-indent {
+  width: calc(var(--depth) * var(--indent));
+  flex: none;
+}
+
+.tree-chev {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--chev);
+  height: var(--row);
+  flex: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+}
+
+/* the chevron's target reaches past its column */
+button.tree-chev::before {
+  content: "";
+  position: absolute;
+  inset: 0 -6px;
+}
+
+.tree-chev svg {
+  transition: transform 120ms;
+}
+
+.tree-chev[data-open] svg {
+  transform: rotate(90deg);
+}
+
+.tree-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: var(--row);
+  padding: 0 0 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.tree-name {
+  align-self: stretch;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-main .layer-tag {
+  flex: none;
+  margin-left: 0;
+}
+
+.tree-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--thumb);
+  height: var(--thumb);
+  flex: none;
+  color: var(--muted);
+}
+
+.tree-thumb {
+  display: block;
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 4px;
+  background: var(--canvas);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* the layer's kind, on its thumbnail's corner; vector matches the toolbar's VECTOR */
+.tree-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.tree-badge svg {
+  width: 9px;
+  height: 9px;
+  stroke-width: 2.6;
+}
+
+.tree-badge[data-kind="shape"] {
+  color: var(--accent);
+}
+
+.tree-row[data-selected] .tree-badge {
+  background: color-mix(in srgb, var(--accent) 28%, var(--panel));
+}
+
+/* a shape's glyph, in its color; the drag handle that reorders it */
+.shape-glyph {
+  color: var(--text);
+  touch-action: none;
+  cursor: grab;
+}
+
+.shape-glyph .tree-badge {
+  right: -5px;
+  bottom: -5px;
+  width: calc(var(--thumb) / 2 + 2px);
+  height: calc(var(--thumb) / 2 + 2px);
+  background: var(--text);
+  color: var(--panel);
+}
+
+.shape-glyph .tree-badge svg {
+  stroke-width: 3.2;
+}
+
+.shape-row[data-mode="cut"] .shape-glyph {
+  color: var(--muted);
+}
+
+.shape-row[data-editing] {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.shape-row[data-lifted] {
+  opacity: 0.5;
+}
+
+.shape-row[data-drop]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.shape-row[data-drop="before"]::after {
+  top: -1px;
+}
+
+.shape-row[data-drop="after"]::after {
+  bottom: -1px;
+}
+
+.tree-rename {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--row) - 6px);
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* the trailing slot: state at rest (hidden, locked), ⋯ on the selected row, all of it on hover */
+.tree-end {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding-right: 2px;
+}
+
+.tree-inline {
+  display: grid;
+  place-items: center;
+  width: var(--hit-inline);
+  height: var(--hit-inline);
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.tree-inline svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tree-end > .tree-inline:not([data-state]),
+.tree-end > .tree-more {
+  display: none;
+}
+
+/* rows that open or fold on a tap are never selected, so their ⋯ always shows */
+.tree-row[data-selected] .tree-end > .tree-more,
+.tree-row[data-held] .tree-end > .tree-more,
+.library-row .tree-end > .tree-more,
+.object-group-row .tree-end > .tree-more,
+.tree-end > .tree-more:has([data-active]) {
+  display: block;
+}
+
+.tree-row[data-selected] .tree-more .tree-inline {
+  color: var(--text);
+}
+
+@media (hover: hover) {
+  .tree-row:is(:hover, :focus-within) .tree-end > .tree-inline {
+    display: grid;
+  }
+
+  .tree-row:is(:hover, :focus-within) .tree-end > .tree-more {
+    display: block;
+  }
+
+  .tree-inline:hover {
+    background: var(--pressed);
+    color: var(--text);
+  }
+}
+
+.shape-empty {
+  padding: 6px 8px 8px calc(8px + var(--depth, 0) * var(--indent) + var(--chev));
+  font-size: 12px;
+  color: var(--muted);
+  list-style: none;
+}
+
+.layer-name-input {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  outline: none;
+  user-select: text;
+}
+
+/* #endregion */
+
+/* #region Style panel */
+
+.style-panel {
+  width: 256px;
+  max-width: calc(100vw - 2 * var(--edge));
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.style-panel .panel-header {
+  padding: 4px;
+}
+
+.style-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: calc(var(--hit) - 4px);
+  padding: 0 8px 0 6px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .style-toggle:hover {
+    background: var(--hover);
+  }
+}
+
+.style-toggle .hex {
+  flex: 1;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.palette {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  padding: 4px 10px;
+  max-height: 232px;
+  overflow-y: auto;
+}
+
+@media (pointer: coarse) {
+  .palette {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+}
+
+.swatch {
+  aspect-ratio: 1;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.swatch[data-active] {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 4px var(--accent);
+  position: relative;
+  z-index: 1;
+}
+
+.swatch.current {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+.style-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+}
+
+.depth-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.depth-value {
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle-chip {
+  height: var(--hit);
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  white-space: nowrap;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle-chip[data-active] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.style-label {
+  width: 44px;
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.palette-actions {
+  padding-top: 2px;
+  gap: 2px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.color-edit {
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.color-edit input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* #endregion */
+
+/* #region Timeline */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 2 * var(--edge)));
+  padding: 4px;
+  gap: 4px;
+}
+
+.ui[data-compact] .timeline {
+  width: 100%;
+}
+
+.timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Keep all six touch targets reachable, with the range and timing on their own row on phones. */
+.ui[data-compact] .timeline-transport {
+  flex-wrap: wrap;
+}
+
+.ui[data-compact] .timeline-transport .timeline-scope {
+  order: -1;
+  flex: 1 0 100%;
+  justify-content: center;
+}
+
+.ui[data-compact] .timeline-transport .timeline-spacer {
+  display: none;
+}
+
+.timeline-readout {
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timeline-length {
+  color: var(--muted);
+}
+
+.timeline-spacer {
+  flex: 1;
+}
+
+.timeline-scope {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* the playback range: a chip naming the tag that plays, opening the list of tags */
+.menu-trigger.range-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
+  height: var(--hit);
+  padding: 0 8px 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.range-chip > .range-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.range-chip > .range-glyph,
+.range-chip > svg {
+  flex: none;
+  color: var(--muted);
+}
+
+@media (hover: hover) {
+  .menu-trigger.range-chip:hover {
+    background: var(--hover);
+  }
+}
+
+.menu-trigger.range-chip[data-active],
+.menu-trigger.range-chip:active {
+  background: var(--pressed);
+}
+
+.menu-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tag-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+
+.tag-swatch[style*="background"] {
+  box-shadow: none;
+}
+
+/* tag edit mode: the tag's name, direction and repeats replace the transport */
+.tag-edit {
+  gap: 4px;
+}
+
+.tag-name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: calc(var(--hit) - 4px);
+  padding: 0 10px;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+}
+
+.tag-name input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+}
+
+.tag-name:focus-within {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.segmented.tag-direction {
+  flex: none;
+}
+
+.segmented.tag-direction button {
+  min-width: 36px;
+  font-size: 15px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+}
+
+.stepper-value {
+  min-width: 32px;
+  text-align: center;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The strip scrolls sideways under a finger; tapping a tile picks the pose. It is a grid, one
+ * column per frame, so tag bands above the tiles line up with the frames they cover.
+ */
+.timeline-strip {
+  --tile: calc(var(--hit) + 12px);
+  --band: 22px;
+  display: grid;
+  justify-content: start;
+  gap: 2px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+  padding: 2px;
+}
+
+@media (pointer: coarse) {
+  .timeline-strip {
+    --band: 26px;
+  }
+}
+
+/* room for the trim handles past the first and last tile */
+.timeline-strip[data-trimming] {
+  padding-inline: 14px;
+}
+
+.frame-tile {
+  grid-row: -2;
+}
+
+/* a tag: a colored band over its frames. Tap to play only it, tap again to edit it */
+.tag-band {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tag) 35%, var(--panel));
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tag-band[data-active] {
+  background: var(--tag);
+  color: #1d1d1f;
+}
+
+.tag-band:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tag-band-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-band-glyph {
+  flex: none;
+  opacity: 0.75;
+}
+
+/* frames outside the range that plays */
+.frame-tile[data-outside],
+.lane-segment[data-outside] {
+  opacity: 0.4;
+}
+
+/* the range of the tag being edited, with a handle at each end */
+.tag-trim {
+  grid-row: -2;
+  margin: -2px;
+  border: 3px solid var(--tag);
+  border-radius: calc(var(--radius-inner) + 2px);
+  pointer-events: none;
+}
+
+.tag-handle {
+  position: relative;
+  grid-row: -2;
+  z-index: 1;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: var(--hit);
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--tag);
+  color: #1d1d1f;
+  touch-action: none;
+  cursor: ew-resize;
+}
+
+.tag-handle[data-side="start"] {
+  justify-self: start;
+  margin-left: -13px;
+}
+
+.tag-handle[data-side="end"] {
+  justify-self: end;
+  margin-right: -13px;
+}
+
+/* a wider grip under a finger than it looks */
+.tag-handle::before {
+  content: "";
+  position: absolute;
+  inset: -2px -12px;
+}
+
+.tag-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.frame-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--tile);
+  height: var(--tile);
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-inner);
+  background: var(--canvas);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 80ms;
+}
+
+.frame-tile[data-active] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* while playing, the pose on screen gets a ring; the frame being edited stays filled */
+.frame-tile[data-showing] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* onion neighbors: a colored bar under the tile, so the cue doesn't rely on the ghost color alone */
+.frame-tile[data-onion]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.frame-tile[data-onion="before"]::after {
+  background: var(--onion-before);
+}
+
+.frame-tile[data-onion="after"]::after {
+  background: var(--onion-after);
+}
+
+.frame-thumb {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* with a picture, the number moves to a corner */
+.frame-thumb + .frame-number {
+  position: absolute;
+  left: 4px;
+  bottom: 2px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* the frame being edited keeps its picture, with an accent ring instead of a fill */
+.frame-tile[data-active]:has(.frame-thumb) {
+  background: var(--canvas);
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.frame-hold {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+/* reorder mode: tiles are drag handles, so the strip stops scrolling under a finger */
+.timeline-strip[data-reorder] {
+  touch-action: none;
+}
+
+.timeline-strip[data-reorder] .frame-tile {
+  cursor: grab;
+}
+
+.frame-tile[data-dragging] {
+  opacity: 0.4;
+}
+
+.frame-tile[data-drop="before"] {
+  box-shadow: -4px 0 0 0 var(--accent);
+}
+
+.frame-tile[data-drop="after"] {
+  box-shadow: 4px 0 0 0 var(--accent);
+}
+
+/* the scrub lane: a time ruler, each pose as long as it shows; the whole lane is the hit target */
+.timeline-lane {
+  display: flex;
+  align-items: center;
+  height: var(--hit);
+  padding: 0 4px;
+  border-radius: var(--radius-inner);
+  touch-action: none;
+  cursor: ew-resize;
+  outline: none;
+}
+
+.timeline-lane:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.lane-track {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  height: 8px;
+}
+
+.lane-segment {
+  flex-basis: 0;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--grid-strong);
+}
+
+.lane-segment[data-active] {
+  background: var(--accent);
+}
+
+.lane-segment[data-showing] {
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.frame-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) {
+  .frame-tile:not([data-active]):hover {
+    background: var(--hover);
+  }
+}
+
+/* #endregion */
+
+/* #region Toolbar */
+
+.toolbar {
+  display: flex;
+  padding: 4px;
+  gap: 2px;
+}
+
+.ui[data-compact] .toolbar {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.ui[data-compact] .toolbar .icon-button {
+  flex: 1;
+  max-width: 56px;
+}
+
+.shape-bar {
+  gap: 2px;
+}
+
+/* Properties: the selected shape's settings, under the color panel */
+.properties-panel {
+  width: 288px;
+  max-width: calc(100vw - 2 * var(--edge));
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+/* the color panel keeps its size; Properties scrolls under it */
+.top-right:has(.properties-panel) > .style-panel {
+  flex-shrink: 0;
+}
+
+.properties-panel .step-inspector {
+  margin: 0;
+  padding: 4px 4px 0;
+  border-top: none;
+  gap: 0;
+}
+
+.properties-panel .inspector-head {
+  flex-direction: row;
+  align-items: center;
+  padding: 0 0 4px;
+}
+
+.properties-panel .inspector-head .kind-trigger {
+  flex: 1;
+  justify-content: flex-start;
+  font-weight: 600;
+}
+
+.properties-panel .inspector-section {
+  padding: 4px 8px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.fill-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fill-swatch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+
+.fill-swatch[data-active] {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+}
+
+.fill-all {
+  height: var(--hit);
+  margin-left: auto;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* the bar over the toolbar for a selected shape */
+.bar-name {
+  max-width: 160px;
+  padding: 0 6px 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.bar-chip {
+  height: var(--hit);
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .bar-chip:hover,
+  .fill-all:hover {
+    background: var(--hover);
+  }
+}
+
+.bar-chip:active {
+  background: var(--pressed);
+}
+
+.bar-done,
+.bar-done:active {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.bar-muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* phones, editing in place: the top bar says what (back, the shape, "editing") and keeps Undo; the
+   editing bar takes the toolbar's place, its name in the top bar */
+.ui[data-compact] .editing-bar .bar-name,
+.ui[data-compact] .editing-bar .bar-name + .bar-divider {
+  display: none;
+}
+
+.ui[data-compact] .editing-bar {
+  width: 100%;
+}
+
+.ui[data-compact] .editing-bar .bar-done {
+  margin-left: auto;
+}
+
+.ui[data-compact][data-editing] .top-left > .panel.bar > :not(.crumbs):not([aria-label="Undo"]) {
+  display: none;
+}
+
+.ui[data-compact][data-editing] .top-left > .panel.bar {
+  width: 100%;
+}
+
+.crumb-note {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* phones: Properties as a sheet over the toolbar */
+.properties-sheet {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 16px 16px var(--radius) var(--radius);
+  padding: 0 8px 8px;
+  overflow: hidden;
+}
+
+.sheet-grabber {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  flex: none;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.sheet-grabber > span {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong, var(--muted));
+  opacity: 0.5;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.sheet-head .kind-trigger {
+  font-weight: 600;
+}
+
+.sheet-spacer {
+  flex: 1;
+}
+
+.sheet-title {
+  padding-left: 8px;
+  font-weight: 600;
+}
+
+/* Layers | Properties */
+.sheet-switch {
+  flex: none;
+}
+
+.sheet-switch button {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.properties-sheet .layer-list {
+  margin: 0 -4px;
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sheet-body .inspector-section {
+  padding: 0 0 6px;
+}
+
+.sheet-body .inspector-section + .inspector-section {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-body .inspector-field .kind-trigger {
+  height: var(--row);
+}
+
+.sheet-body .step-inspector {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-top: none;
+}
+
+/* phones, editing a path: the picked point over the bar */
+.point-card {
+  width: 100%;
+  padding: 8px 10px;
+}
+
+.point-card-title {
+  padding-bottom: 6px;
+  font-weight: 600;
+}
+
+/* a shape's size by the pointer while it is drawn */
+.draw-label {
+  position: fixed;
+  z-index: 20;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* what the toolbar's tools are for: the active layer's kind */
+.toolbar-kind {
+  align-self: center;
+  padding: 0 6px 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  user-select: none;
+}
+
+.toolbar-kind[data-kind="vector"] {
+  color: var(--accent);
+}
+
+/* phones: the label stands on its own line's edge, so the tools keep their room */
+.ui[data-compact] .toolbar-kind {
+  padding: 0 2px;
+  font-size: 9px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.more-shapes {
+  position: relative;
+  display: flex;
+}
+
+.ui[data-compact] .toolbar .more-shapes {
+  flex: 1;
+  max-width: 56px;
+}
+
+.ui[data-compact] .toolbar .more-shapes .icon-button {
+  width: 100%;
+}
+
+.more-button[data-open] {
+  background: var(--hover);
+}
+
+.more-caret {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  display: flex;
+  opacity: 0.7;
+}
+
+/* More ▾: a small grid of shapes over the toolbar */
+.more-grid {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  width: 216px;
+  padding: 6px;
+}
+
+/* over the options bar, when there is one */
+.bottom-center:has(.options-bar) .more-grid {
+  bottom: calc(100% + 64px);
+}
+
+.more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 4px 2px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+@media (hover: hover) {
+  .more-item:hover {
+    background: var(--hover);
+  }
+}
+
+.more-item[data-active] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* the options bar's segments are as tall as its buttons */
+.options-bar .segmented {
+  flex: none;
+}
+
+.options-bar .segmented button {
+  flex: none;
+  height: calc(var(--hit) - 4px);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.ui[data-compact] .options-bar {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui[data-compact] .options-bar .segmented button {
+  padding: 0 5px;
+  font-size: 12px;
+}
+
+.ui[data-compact] .options-bar .toggle-chip {
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.part-bar .segmented {
+  flex: none;
+}
+
+.part-name {
+  max-width: 120px;
+  padding: 0 4px 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* phones: the layers panel names the part; the bar needs the room */
+.ui[data-compact] .part-name {
+  display: none;
+}
+
+.part-pivot {
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.part-pivot[data-unset] {
+  color: var(--muted);
+}
+
+.shape-size {
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shape-size.moved {
+  padding-left: 0;
+  color: var(--text);
+}
+
+.extrude-depth {
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.extrude-depth[data-carve] {
+  color: var(--danger);
+}
+
+.icon-button.primary,
+.icon-button.primary:not(:disabled):active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+@media (hover: hover) {
+  .icon-button.primary:not(:disabled):hover {
+    background: var(--accent);
+    filter: brightness(1.08);
+  }
+}
+
+.icon-segments button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+}
+
+/* #endregion */
+
+/* #region View controls */
+
+.view-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gap);
+}
+
+/* the viewport draws a small 3D view behind it */
+.thumbnail {
+  width: 120px;
+  height: 120px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui[data-compact] .thumbnail {
+  width: 88px;
+  height: 88px;
+}
+
+.workplane-panel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  max-width: calc(100vw - 2 * var(--edge));
+}
+
+.workplane-panel .segmented {
+  flex: none;
+}
+
+.workplane-panel .segmented button {
+  min-width: var(--hit);
+  height: var(--hit);
+}
+
+.workplane-position {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workplane-range {
+  width: 120px;
+  min-width: 60px;
+  flex: 1;
+  height: var(--hit);
+  accent-color: var(--accent);
+}
+
+.workplane-level {
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .workplane-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workplane-panel .segmented {
+    justify-self: stretch;
+  }
+
+  .workplane-clip {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .workplane-position {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* #endregion */
+
+/* #region Dialogs & toast */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.dialog {
+  width: min(400px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 0 16px;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dialog-body {
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.size-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.size-input {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+}
+
+.size-input span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.size-input input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 16px; /* prevents iOS zoom on focus */
+  user-select: text;
+}
+
+/* the viewport's axis colors, so the size fields read against the anchor picker */
+.size-input span[data-axis="0"] {
+  color: #e5484d;
+}
+.size-input span[data-axis="1"] {
+  color: #30a46c;
+}
+.size-input span[data-axis="2"] {
+  color: #3e7cf7;
+}
+
+.anchor-picker {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  touch-action: none;
+  cursor: pointer;
+  border-radius: var(--radius-inner);
+  outline: none;
+}
+
+.anchor-picker:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.anchor-edge {
+  stroke: var(--grid-strong);
+  stroke-width: 1.5;
+}
+
+.anchor-edge[data-hidden] {
+  stroke-dasharray: 4 4;
+}
+
+.anchor-axis line {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.anchor-axis .anchor-arrow {
+  stroke-width: 1.5;
+}
+
+.anchor-axis text {
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.anchor-dot {
+  fill: var(--muted);
+  transition: r 0.12s ease;
+}
+
+.anchor-dot[data-depth="1"] {
+  opacity: 0.6;
+}
+
+.anchor-dot[data-depth="2"] {
+  opacity: 0.35;
+}
+
+.anchor-dot[data-active] {
+  fill: var(--accent);
+  opacity: 1;
+  stroke: var(--panel);
+  stroke-width: 3;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.hint.small {
+  font-size: 12px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcuts td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts td:last-child {
+  text-align: right;
+}
+
+.toast {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  top: max(16px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+  animation: toast-in 160ms ease-out;
+}
+
+@media (max-width: 640px) {
+  .toast {
+    top: auto;
+    bottom: calc(max(var(--edge), env(safe-area-inset-bottom)) + var(--hit) + 64px);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+}
+
+/* #endregion */
+
+/* #region Sharing */
+
+.share .link-field,
+.name-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.name-field {
+  gap: 8px;
+}
+
+.share-list,
+.peer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.share-row,
+.peer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--hit);
+  border-bottom: 1px solid var(--border);
+}
+
+.share-row:last-child,
+.peer-row:last-child {
+  border-bottom: none;
+}
+
+.share-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-meta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.peer-dot {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.status-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.status-line .hint {
+  grid-column: 2;
+}
+
+/* Saved is calm; working is accent; trouble is danger. */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+[data-status="saved"] .status-dot {
+  background: #30a46c;
+}
+
+[data-status="saving"] .status-dot,
+[data-status="connecting"] .status-dot {
+  background: var(--accent);
+  animation: status-pulse 1.2s ease-in-out infinite;
+}
+
+[data-status="reconnecting"] .status-dot,
+[data-status="closed"] .status-dot {
+  background: var(--danger);
+}
+
+@keyframes status-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--hit);
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .session-chip:hover {
+    background: var(--hover);
+  }
+}
+
+.session-chip:active {
+  background: var(--pressed);
+}
+
+.session-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.peer-stack {
+  display: flex;
+}
+
+.peer-stack .peer-dot + .peer-dot {
+  margin-left: -6px;
+}
+
+.peer-more,
+.peer-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.peer-more {
+  margin-left: 4px;
+}
+
+.peer-count {
+  display: none;
+}
+
+/* phones: the people count instead of their faces */
+.ui[data-compact] .peer-stack {
+  display: none;
+}
+
+.ui[data-compact] .peer-count {
+  display: inline;
+}
+
+/* #endregion */
+
+.icon {
+  display: block;
+}
+
+/* #region Shape layers */
+
+.layer-tag {
+  margin-left: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.step-swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* a step that keeps the colors below: only half its swatch is its own */
+.step-swatch[data-keep] {
+  background-image: linear-gradient(135deg, transparent 50%, var(--panel) 50%);
+}
+
+.step-color {
+  display: grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  flex: none;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  cursor: pointer;
+}
+
+.step-color .step-swatch {
+  width: 22px;
+  height: 22px;
+}
+
+.stack-hint {
+  margin: 6px 16px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* the selected shape's settings, under the list */
+.step-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 6px 0;
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.inspector-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.step-modes {
+  flex: none;
+}
+
+.inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.inspector-section[data-shut] {
+  padding-bottom: 4px;
+}
+
+/* a section's title: tap to fold it; folded, it says what it is set to */
+.inspector-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: var(--row);
+  margin: 0 -4px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inspector-toggle svg {
+  flex: none;
+  transform: rotate(90deg);
+  transition: transform 120ms;
+}
+
+.inspector-toggle[aria-expanded="false"] svg {
+  transform: none;
+}
+
+@media (hover: hover) {
+  .inspector-toggle:hover {
+    background: var(--hover);
+  }
+}
+
+.inspector-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fill-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* label, then X Y Z: position, size and turns line up */
+.inspector-grid {
+  display: grid;
+  grid-template-columns: 52px repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+}
+
+/* the inspector's controls are list-sized, not toolbar-sized */
+.step-inspector .num-field,
+.step-inspector .turn-button,
+.step-inspector .select-trigger,
+.step-inspector .inspector-head .kind-trigger {
+  height: var(--row);
+}
+
+.step-inspector .segmented button {
+  height: calc(var(--row) - 4px);
+  font-size: 12px;
+}
+
+.step-inspector .num-field {
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+
+.step-inspector .style-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.step-inspector .fill-swatch {
+  width: var(--thumb);
+  height: var(--thumb);
+}
+
+.step-inspector .fill-all,
+.step-inspector .step-color {
+  height: var(--row);
+}
+
+.inspector-title {
+  padding: 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inspector-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspector-field .style-label {
+  width: 52px;
+}
+
+.inspector-field .segmented,
+.inspector-field .num-field,
+.inspector-field .menu-root {
+  flex: 1;
+  min-width: 0;
+}
+
+.xyz {
+  display: flex;
+  gap: 4px;
+}
+
+.xyz .num-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* a number: drag sideways to scrub, tap to type */
+.num-field {
+  display: flex;
+  align-items: center;
+  height: var(--hit);
+  padding: 0 8px;
+  gap: 6px;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  cursor: ew-resize;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.num-field[data-editing] {
+  cursor: text;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--panel);
+}
+
+.num-field[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.num-label {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.num-field input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  cursor: inherit;
+  pointer-events: none;
+}
+
+.num-field[data-editing] input {
+  pointer-events: auto;
+}
+
+.num-field input::placeholder {
+  color: var(--muted);
+}
+
+/* a button that names a choice and opens a menu of the others */
+.kind-trigger,
+.select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: var(--hit);
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kind-trigger .kind-name,
+.select-trigger span {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shape-bar .kind-trigger {
+  width: auto;
+  background: transparent;
+}
+
+.kind-trigger[data-active],
+.select-trigger[data-active] {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.bar-toggle {
+  font-size: 13px;
+}
+
+.bar-sizes {
+  display: flex;
+  gap: 2px;
+}
+
+.bar-sizes .num-field {
+  width: 64px;
+  padding: 0 6px;
+}
+
+/* phones: the bar keeps the kind's icon, not its name, so the sizes fit */
+.ui[data-compact] .shape-bar .kind-name {
+  display: none;
+}
+
+.ui[data-compact] .bar-sizes .num-field {
+  width: 52px;
+}
+
+.turn-button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: var(--hit);
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.point-delete {
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.turn-button:active {
+  background: color-mix(in srgb, var(--accent) 20%, var(--hover));
+}
+
+.menu-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+/* #endregion */
+
+
+/* #region Scenes */
+
+.scene-app .menu-trigger,
+.inspector .menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--hit);
+  padding: 0 12px 0 8px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .scene-app .menu-trigger:hover,
+  .inspector .menu-trigger:hover {
+    background: var(--hover);
+  }
+}
+
+.scene-app .menu-trigger[data-active],
+.scene-app .menu-trigger:active,
+.inspector .menu-trigger[data-active],
+.inspector .menu-trigger:active {
+  background: var(--pressed);
+}
+
+.scene-add-label,
+.scene-snap-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scene-snap-label {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.instance-bar .segmented {
+  flex: none;
+}
+
+.instance-value {
+  min-width: 48px;
+}
+
+.outliner-empty {
+  padding: 4px 12px 12px;
+}
+
+.instance-row {
+  display: contents;
+}
+
+/* phones: what changes and along which axis on one row, the stepper and menu on the next */
+.ui[data-compact] .instance-bar {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.ui[data-compact] .instance-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* #endregion */
+
+/* #region Scene inspector */
+
+.inspector {
+  width: min(420px, 100%);
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inspector-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 8px 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--hit);
+}
+
+.field-name {
+  width: 88px;
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-control {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-row[data-inherited] .field-control {
+  opacity: 0.6;
+}
+
+.field-reset-space {
+  width: calc(var(--hit) - 8px);
+  flex: none;
+}
+
+.field-number {
+  width: 100%;
+  min-width: 0;
+  height: calc(var(--hit) - 8px);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: var(--hover);
+  outline: none;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.field-number:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.field-vec {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.field-axis {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.field-color {
+  width: var(--hit);
+  height: calc(var(--hit) - 8px);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: none;
+}
+
+.field-points {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.field-value.readonly {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.field-menu {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outliner-badge {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* the scene tree (docs/workspace.md): the scene's row leads back out of a model */
+.scene-tree-root {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--hit);
+  padding: 0 8px;
+  margin-left: -8px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scene-tree-root .panel-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-tree-root[data-active] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+@media (hover: hover) {
+  .scene-tree-root:hover {
+    background: var(--hover);
+  }
+}
+
+/* the tree's two parts: the edited model's layers, then the scene's objects */
+.tree-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.tree-layers {
+  flex: none;
+  max-height: 34vh;
+}
+
+.tree-objects {
+  flex: 1 1 auto;
+}
+
+.tree-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 2px 4px 2px 6px;
+}
+
+.tree-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+button.tree-section-title {
+  cursor: pointer;
+}
+
+.tree-section-title .layer-tag {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+@media (hover: hover) {
+  button.tree-section-title:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+}
+
+.tree-count {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-filter {
+  padding: 0 8px 6px;
+}
+
+.tree-filter input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.tree-filter input:focus {
+  border-color: var(--accent);
+}
+
+/* a kind's (or model's) header in Objects; the model being edited */
+.object-group-row .tree-name,
+.object-row[data-entered] .tree-name {
+  font-weight: 600;
+}
+
+.object-row .tree-main {
+  cursor: default;
+}
+
+.outliner-detail {
+  flex: none;
+  padding: 0 2px 0 6px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.scene-tree[data-dragging] {
+  cursor: grabbing;
+}
+
+.scene-tree .tree-row[data-dragged] {
+  opacity: 0.45;
+}
+
+.scene-tree .tree-row[data-drop="into"],
+.scene-tree .panel-header[data-drop] {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  border-radius: var(--radius-inner);
+}
+
+.scene-tree .tree-row[data-drop="before"] {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.scene-tree .tree-row[data-drop="after"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* where you are: the scene, then the model being edited */
+.crumbs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--hit);
+  height: var(--hit);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .crumb:hover {
+    background: var(--hover);
+    color: inherit;
+  }
+}
+
+.crumb-label,
+.crumb-current {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb-separator {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.crumb-current {
+  padding: 0 8px;
+  font-weight: 600;
+}
+
+/* phones: where you are, as a line of small text under the top bar; a tap lists the way back */
+.ui[data-compact] .top-left > .panel.bar {
+  position: relative;
+}
+
+/* panels that open under the bar leave the line its room */
+.ui[data-compact]:has(.crumb-line) .sheet:not(:empty) {
+  margin-top: 30px;
+}
+
+.crumb-line {
+  position: absolute;
+  top: 100%;
+  left: 6px;
+  max-width: calc(100vw - 2 * var(--edge) - 12px);
+}
+
+.crumb-line .menu-trigger {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+}
+
+.crumb-line .menu-trigger[data-active] {
+  color: var(--text);
+}
+
+.crumb-line-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  /* legible over the model */
+  text-shadow: 0 0 6px var(--canvas), 0 0 2px var(--canvas);
+}
+
+.crumb-line-part {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.crumb-line-current {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.crumb-line-sep {
+  opacity: 0.6;
+}
+
+/* phones: just the way back, then where you are */
+.ui[data-compact] .crumb-current {
+  padding-left: 2px;
+}
+
+.ui[data-compact] .crumb-current {
+  max-width: 96px;
+}
+
+.ui[data-compact] .inspector {
+  width: 100%;
+}
+
+/* #endregion */
+
+/* submenus: a row to go deeper, and one back at the top of the one open */
+.menu-more {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.menu-back .menu-label {
+  font-weight: 600;
+}
+
+/* the library: its models and scenes, under small headings */
+.library-heading {
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  list-style: none;
+}
+
+/* a model only one scene uses, listed under it */
+.library-row[data-child] .tree-name {
+  color: var(--muted);
+}
+
+.library-app {
+  background: var(--canvas);
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VoxelVolume: ray-marched vs mesh</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; font: 13px system-ui, sans-serif; background: #f4f5f7; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+      #panel {
+        position: fixed; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px;
+        padding: 10px; border-radius: 12px; background: #fffe; box-shadow: 0 2px 12px #0002; max-width: 340px;
+      }
+      #panel .row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+      #panel .label { width: 52px; color: #666; }
+      #panel input[type=range] { width: 200px; }
+      #panel button { min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: #eceef1; cursor: pointer; }
+      #panel button[aria-pressed="true"] { background: #2b6cff; color: #fff; }
+      #stats, #result { color: #333; font-variant-numeric: tabular-nums; white-space: pre-line; }
+      .tag { position: fixed; top: 12px; padding: 4px 8px; border-radius: 6px; background: #0008; color: #fff; }
+      #diff { position: fixed; inset: 0; width: 100%; height: 100%; display: none; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <canvas id="diff" title="Click to close"></canvas>
+    <span class="tag" id="tag-mesh">Mesh</span>
+    <span class="tag" id="tag-volume">VoxelVolume</span>
+    <div id="panel">
+      <div class="row"><span class="label">View</span><span id="view-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Camera</span><span id="camera-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Count</span><span id="count-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Frames</span><span id="animation-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Lighting</span><span id="lighting-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Light</span><span id="light-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Shading</span><span id="shading-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Dissolve</span><input id="dissolve" type="range" min="0" max="1" step="0.01" value="0" /></div>
+      <div class="row"><span class="label">Cutaway</span><input id="cutaway" type="range" min="0" max="1" step="0.01" value="1" /></div>
+      <div class="row"><span class="label">Glow</span><span id="glow-buttons" class="row"></span></div>
+      <div class="row"><span class="label">Check</span><button id="diff-button">Diff images</button><button id="pick-button">Check picking</button></div>
+      <div id="stats"></div>
+      <div id="result"></div>
+      <div style="color:#666">Tap a voxel to remove it, with a flash. Add <code>?sample</code> to ignore the autosaved document.</div>
+    </div>
+    <script type="module" src="./voxel-volume.ts"></script>
+  </body>
+</html>

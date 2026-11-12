@@ -1,0 +1,29 @@
+{
+  "name": "@voxeltoy/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "dev:app": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@voxeltoy/core": "workspace:*",
+    "@voxeltoy/sdk": "workspace:*",
+    "@voxeltoy/sync": "workspace:*",
+    "@voxeltoy/three": "workspace:*",
+    "solid-js": "^1.9.3",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@iwer/devui": "2.7.0",
+    "@types/three": "^0.182.0",
+    "iwer": "2.7.0",
+    "vite": "^7.3.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "vite-plugin-solid": "^2.10.2",
+    "workbox-window": "^7.4.1"
+  }
+}

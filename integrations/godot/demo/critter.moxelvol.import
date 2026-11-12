@@ -1,0 +1,14 @@
+[remap]
+
+importer="moxel.volumes"
+type="Resource"
+uid="uid://b12b2krx1v0oa"
+path="res://.godot/imported/critter.moxelvol-ef672ce1f4d7c9552015ebe628e59253.res"
+
+[deps]
+
+source_file="res://demo/critter.moxelvol"
+dest_files=["res://.godot/imported/critter.moxelvol-ef672ce1f4d7c9552015ebe628e59253.res"]
+
+[params]
+
